@@ -1,0 +1,13 @@
+# 배포 환경(Linux, Malgun Gothic 없음)에서도 한글이 깨지지 않도록 범용 sans serif만 지정한다.
+# 브라우저가 렌더링하는 부분(Streamlit UI 텍스트)은 이 설정과 무관하게 접속 기기의 기본
+# 한글 폰트로 자동 대체된다 — 실제로 폰트 이름을 고정해야 하는 곳은 Plotly 차트뿐이고,
+# 그건 src/viz/common.py의 FONT_FAMILY("Malgun Gothic, Apple SD Gothic Neo, sans-serif")가
+# 이미 처리한다(로컬엔 Malgun Gothic, macOS엔 Apple SD Gothic Neo, 그 외엔 sans-serif로 폴백).
+[theme]
+base = "light"
+primaryColor = "#1F77B4"
+font = "sans serif"
+
+[server]
+enableCORS = false
+enableXsrfProtection = true

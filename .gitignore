@@ -1,0 +1,25 @@
+# 원본 데이터는 저장소에 포함하지 않는다 (용량 + 재현은 스크립트로).
+# 단 PROVENANCE.md/README.md는 텍스트라 가볍고, app/pages/6_데이터출처.py가 배포 환경에서도
+# 읽어야 해서 예외로 둔다(STEP 13, TROUBLESHOOTING.md 2026-09-10).
+data/raw/*
+!data/raw/PROVENANCE.md
+!data/raw/README.md
+
+# 가상환경
+.venv/
+venv/
+
+# 파이썬 캐시
+__pycache__/
+*.pyc
+
+# 학습된 모델 바이너리 (재현 스크립트로 다시 만듦)
+*.joblib
+
+# Jupyter 체크포인트
+.ipynb_checkpoints/
+
+# OS/에디터
+.DS_Store
+Thumbs.db
+.vscode/

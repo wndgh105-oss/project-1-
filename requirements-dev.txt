@@ -1,0 +1,9 @@
+# 대시보드 실행에는 필요 없지만, data/raw부터 전체 재현(모델 학습, PNG 내보내기, 노트북 EDA)에는
+# 필요한 패키지. 로컬 개발 시: pip install -r requirements.txt -r requirements-dev.txt
+scikit-learn
+imbalanced-learn
+kaleido
+joblib
+jupyter
+ipykernel
+matplotlib

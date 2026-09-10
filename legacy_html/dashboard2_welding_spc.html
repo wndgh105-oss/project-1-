@@ -1,0 +1,464 @@
+<meta charset="UTF-8">
+<title>용접 공정 SPC 실시간 품질관리 대시보드</title>
+<style>
+  :root{
+    color-scheme: light;
+    --surface-1:      #fcfcfb;
+    --surface-2:      #ffffff;
+    --page-plane:     #f2f4f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --grid:           #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --series-blue:    #2a78d6;
+    --series-orange:  #eb6834;
+    --series-aqua:    #1baf7a;
+    --status-good:      #0ca30c;
+    --status-warning:   #c98500;
+    --status-serious:   #ec835a;
+    --status-critical:  #d03b3b;
+    --card-shadow: 0 1px 2px rgba(11,11,11,0.06), 0 1px 8px rgba(11,11,11,0.04);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      color-scheme: dark;
+      --surface-1:      #1a1a19;
+      --surface-2:      #201f1e;
+      --page-plane:     #0d0d0d;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --grid:           #2c2c2a;
+      --baseline:       #383835;
+      --border:         rgba(255,255,255,0.10);
+      --series-blue:    #3987e5;
+      --series-orange:  #d95926;
+      --series-aqua:    #199e70;
+      --status-good:      #0ca30c;
+      --status-warning:   #c98500;
+      --status-serious:   #ec835a;
+      --status-critical:  #e66767;
+      --card-shadow: 0 1px 2px rgba(0,0,0,0.3), 0 1px 8px rgba(0,0,0,0.25);
+    }
+  }
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --surface-1:      #1a1a19;
+    --surface-2:      #201f1e;
+    --page-plane:     #0d0d0d;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --grid:           #2c2c2a;
+    --baseline:       #383835;
+    --border:         rgba(255,255,255,0.10);
+    --series-blue:    #3987e5;
+    --series-orange:  #d95926;
+    --series-aqua:    #199e70;
+    --status-good:      #0ca30c;
+    --status-warning:   #c98500;
+    --status-serious:   #ec835a;
+    --status-critical:  #e66767;
+    --card-shadow: 0 1px 2px rgba(0,0,0,0.3), 0 1px 8px rgba(0,0,0,0.25);
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--page-plane); color:var(--text-primary);
+    font-family: system-ui,-apple-system,"Segoe UI",sans-serif;
+    padding: 20px 24px 48px;
+  }
+  .wrap{ max-width: 1280px; margin: 0 auto; }
+
+  header.top{
+    display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:10px;
+    margin-bottom:18px;
+  }
+  header.top h1{ font-size:22px; margin:0 0 4px; letter-spacing:-0.01em; }
+  header.top .sub{ color:var(--text-secondary); font-size:13px; }
+  header.top .badge{
+    font-size:12px; color:var(--text-secondary); background:var(--surface-2);
+    border:1px solid var(--border); border-radius:999px; padding:5px 12px;
+  }
+  .line-tag{ color:var(--series-blue); font-weight:600; }
+
+  .kpi-grid{
+    display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px;
+  }
+  @media (max-width:900px){ .kpi-grid{ grid-template-columns:repeat(2,1fr);} }
+
+  .card{
+    background:var(--surface-1); border:1px solid var(--border); border-radius:12px;
+    box-shadow: var(--card-shadow); padding:16px 18px;
+  }
+  .kpi .label{ font-size:12px; color:var(--text-secondary); margin-bottom:8px; display:flex; align-items:center; gap:6px;}
+  .kpi .value{ font-size:28px; font-weight:700; font-variant-numeric: tabular-nums; line-height:1.1;}
+  .kpi .value small{ font-size:14px; font-weight:500; color:var(--text-secondary);}
+  .kpi .delta{ font-size:12px; margin-top:6px; }
+  .dot{ width:9px;height:9px;border-radius:50%; display:inline-block; }
+  .dot.good{ background:var(--status-good);}
+  .dot.warn{ background:var(--status-warning);}
+  .dot.crit{ background:var(--status-critical);}
+
+  .pill{ display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:600; padding:2px 8px; border-radius:999px; }
+  .pill.good{ background:color-mix(in srgb, var(--status-good) 16%, transparent); color:var(--status-good); }
+  .pill.warn{ background:color-mix(in srgb, var(--status-warning) 18%, transparent); color:var(--status-warning); }
+  .pill.crit{ background:color-mix(in srgb, var(--status-critical) 16%, transparent); color:var(--status-critical); }
+
+  section.panel{ margin-bottom:20px; }
+  .panel h2{ font-size:15px; margin:0 0 2px; }
+  .panel .desc{ font-size:12.5px; color:var(--text-secondary); margin:0 0 12px; }
+
+  .chart-card{ padding:18px 20px 10px; }
+  .chart-box{ position:relative; width:100%; }
+  .legend-row{ display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:var(--text-secondary); margin:10px 2px 0; }
+  .legend-row .item{ display:flex; align-items:center; gap:6px; }
+  .swatch{ width:14px; height:3px; border-radius:2px; display:inline-block; }
+  .swatch.dot{ width:9px;height:9px;border-radius:50%; }
+
+  .two-col{ display:grid; grid-template-columns: 1.3fr 1fr; gap:16px; align-items:stretch; }
+  @media (max-width:980px){ .two-col{ grid-template-columns:1fr; } }
+
+  table.spc-table{ width:100%; border-collapse:collapse; font-size:13px; }
+  table.spc-table th, table.spc-table td{
+    text-align:left; padding:8px 10px; border-bottom:1px solid var(--grid);
+    font-variant-numeric: tabular-nums;
+  }
+  table.spc-table th{ color:var(--text-secondary); font-weight:600; font-size:12px; }
+  table.spc-table tr:last-child td{ border-bottom:none; }
+  .row-after td:first-child{ color: var(--series-blue); font-weight:700; }
+  .row-before td:first-child{ color: var(--status-critical); font-weight:700; }
+
+  .timeline{ position:relative; height:64px; margin: 8px 4px 4px; }
+  .timeline .track{ position:absolute; top:30px; left:0; right:0; height:3px; background:var(--grid); border-radius:2px;}
+  .timeline .marker{ position:absolute; top:16px; width:2px; height:32px; }
+  .timeline .marker.drift{ background:var(--text-muted); }
+  .timeline .marker.after{ background:var(--series-blue); }
+  .timeline .marker.before{ background:var(--status-critical); }
+  .timeline .mlabel{ position:absolute; top:0; font-size:10.5px; white-space:nowrap; transform:translateX(-50%); color:var(--text-secondary); }
+  .timeline .mtime{ position:absolute; top:50px; font-size:10.5px; white-space:nowrap; transform:translateX(-50%); font-weight:600;}
+
+  footer{ margin-top:28px; font-size:11.5px; color:var(--text-muted); line-height:1.7; border-top:1px solid var(--border); padding-top:14px; }
+  footer b{ color:var(--text-secondary); }
+
+  details.tablewrap summary{ cursor:pointer; font-size:12px; color:var(--text-secondary); margin-top:8px; }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>용접 공정 SPC 실시간 품질관리 대시보드</h1>
+      <div class="sub"><span class="line-tag">WELD-L1 · RSW(저항 스팟 용접)</span> &nbsp;|&nbsp; 품질특성치: 너겟 지름(mm) &nbsp;|&nbsp; 부분군: X̄-R 관리도 (n=5)</div>
+    </div>
+    <div class="badge" id="dateBadge">2026-08-26 주간조 06:00–14:19 · 총 3,000 타점</div>
+  </header>
+
+  <div class="kpi-grid" id="kpiGrid"></div>
+
+  <section class="panel">
+    <div class="card chart-card">
+      <h2>X̄ 관리도 (부분군 평균 너겟지름)</h2>
+      <p class="desc">부분군 크기 n=5, 관리한계는 초기 30개 부분군(안정구간, 150타점)으로 산출. 빨간 점 = Nelson Rule 위반 부분군.</p>
+      <div class="chart-box" style="height:340px;"><canvas id="xbarChart"></canvas></div>
+      <div class="legend-row">
+        <span class="item"><span class="swatch" style="background:var(--series-blue)"></span>X̄ (부분군 평균)</span>
+        <span class="item"><span class="swatch dot" style="background:var(--status-critical)"></span>Nelson Rule 위반</span>
+        <span class="item"><span class="swatch" style="background:var(--text-muted); opacity:.6"></span>UCL/CL/LCL</span>
+        <span class="item">┊ <span style="color:var(--text-muted)">전극마모 시작</span></span>
+        <span class="item">┊ <span style="color:var(--series-blue)">SPC 탐지</span></span>
+        <span class="item">┊ <span style="color:var(--status-critical)">정기검사 발견</span></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="card chart-card">
+      <h2>R 관리도 (부분군 범위)</h2>
+      <p class="desc">공정 변동성(산포) 추이 — 전극 마모구간에서 산포도 함께 확대됨을 확인.</p>
+      <div class="chart-box" style="height:200px;"><canvas id="rChart"></canvas></div>
+    </div>
+  </section>
+
+  <section class="panel two-col">
+    <div class="card">
+      <h2>공정능력지수(Cpk) 비교</h2>
+      <p class="desc">규격 LSL 5.4mm / USL 6.6mm / 목표 6.0mm 기준. 동일 데이터에서 "언제까지 누적된 데이터로 계산했는가"만 다름.</p>
+      <div class="chart-box" style="height:220px;"><canvas id="cpkChart"></canvas></div>
+      <div class="legend-row">
+        <span class="item"><span class="swatch dot" style="background:var(--status-good)"></span>Cpk ≥ 1.33 (충분)</span>
+        <span class="item"><span class="swatch dot" style="background:var(--status-warning)"></span>1.00–1.33 (보통)</span>
+        <span class="item"><span class="swatch dot" style="background:var(--status-critical)"></span>&lt; 1.00 (부적합)</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>이상탐지 시점 비교</h2>
+      <p class="desc">동일한 특수원인(전극마모 드리프트)을 각 방식이 언제 잡아내는가.</p>
+      <div class="timeline" id="timeline"></div>
+      <table class="spc-table" style="margin-top:14px;">
+        <thead><tr><th>방식</th><th>탐지 용접 순번</th><th>탐지 시각</th><th>규칙/근거</th></tr></thead>
+        <tbody>
+          <tr class="row-after"><td>After · SPC+Nelson</td><td id="afterRow"></td><td id="afterTime"></td><td id="afterRule"></td></tr>
+          <tr class="row-before"><td>Before · 정기샘플링(30분)</td><td id="beforeRow"></td><td id="beforeTime"></td><td>규격(LSL) 이탈 발췌 발견</td></tr>
+        </tbody>
+      </table>
+      <p class="desc" style="margin-top:10px;"><b id="savedHeadline" style="color:var(--text-primary)"></b></p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="card">
+      <h2>오늘자 불량(관리이탈) 현황</h2>
+      <p class="desc">동일 데이터에 대해 대응 방식별로 시나리오를 재구성한 누적 불량(규격이탈) 수치.</p>
+      <div id="defectCards" class="kpi-grid" style="margin:0;"></div>
+    </div>
+  </section>
+
+  <footer id="footerNote"></footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+<script>
+const DATA = {"meta":{"n_total":3000,"subgroup_size":5,"baseline_subgroups":30,"breakpoint_row":1800},"spec":{"LSL":5.4,"USL":6.6,"TARGET":6.0},"control_limits":{"xbar":{"CL":6.0113666666666665,"UCL":6.206796566666666,"LCL":5.815936766666667},"r":{"CL":0.33869999999999995,"UCL":0.7160117999999999,"LCL":0.0},"sigma_hat":0.14561478933791916},"detection":{"after_spc":{"subgroup_idx":372,"row_idx_1based":1861,"time":"2026-08-26 11:10:00","rule":"Rule1(3-sigma 이탈)"},"before_periodic":{"row_idx_1based":2161,"time":"2026-08-26 12:00:00","interval_min":30},"rows_saved":300,"minutes_saved":50.0},"cpk":{"baseline":{"mean":6.0113666666666665,"sigma":0.15067741517954894,"cp":1.3273389363739587,"cpu":1.3021932376348746,"cpl":1.3524846351130428,"cpk":1.3021932376348746,"n":150},"before_periodic":{"mean":5.985496066635817,"sigma":0.17370532761260654,"cp":1.1513751636106124,"cpu":1.179207611360918,"cpl":1.1235427158603069,"cpk":1.1235427158603069,"n":2161},"after_spc":{"mean":6.006157442235357,"sigma":0.15234968419358286,"cp":1.3127693769674653,"cpu":1.299297207622428,"cpl":1.3262415463125028,"cpk":1.299297207622428,"n":1861},"full_if_ignored":{"mean":5.846296,"sigma":0.30540176892767784,"cp":0.6548750542678154,"cpu":0.8226365798364498,"cpl":0.48711352869918123,"cpk":0.48711352869918123,"n":3000}},"defect_count":{"before_periodic":9,"after_spc":1,"full_if_ignored":309},"subgroups":[{"i":0,"t":"06:00","xbar":6.1154,"r":0.207,"rule":null},{"i":1,"t":"06:00","xbar":5.9884,"r":0.335,"rule":null},{"i":2,"t":"06:01","xbar":5.9534,"r":0.322,"rule":null},{"i":3,"t":"06:02","xbar":6.118,"r":0.287,"rule":null},{"i":4,"t":"06:03","xbar":5.9614,"r":0.251,"rule":null},{"i":5,"t":"06:04","xbar":5.9916,"r":0.585,"rule":null},{"i":6,"t":"06:05","xbar":6.1552,"r":0.327,"rule":null},{"i":7,"t":"06:05","xbar":6.0486,"r":0.315,"rule":null},{"i":8,"t":"06:06","xbar":5.9748,"r":0.287,"rule":null},{"i":9,"t":"06:07","xbar":5.9836,"r":0.469,"rule":null},{"i":10,"t":"06:08","xbar":5.961,"r":0.269,"rule":null},{"i":11,"t":"06:09","xbar":6.0388,"r":0.248,"rule":null},{"i":12,"t":"06:10","xbar":5.9674,"r":0.65,"rule":null},{"i":13,"t":"06:10","xbar":5.9672,"r":0.286,"rule":null},{"i":14,"t":"06:11","xbar":5.9698,"r":0.398,"rule":null},{"i":15,"t":"06:12","xbar":5.8572,"r":0.372,"rule":null},{"i":16,"t":"06:13","xbar":5.9882,"r":0.165,"rule":null},{"i":17,"t":"06:14","xbar":6.042,"r":0.407,"rule":null},{"i":18,"t":"06:15","xbar":5.902,"r":0.333,"rule":null},{"i":19,"t":"06:15","xbar":6.0052,"r":0.191,"rule":null},{"i":20,"t":"06:16","xbar":5.9628,"r":0.421,"rule":null},{"i":21,"t":"06:17","xbar":6.015,"r":0.299,"rule":null},{"i":22,"t":"06:18","xbar":6.0778,"r":0.411,"rule":null},{"i":23,"t":"06:19","xbar":6.0392,"r":0.22,"rule":null},{"i":24,"t":"06:20","xbar":5.8874,"r":0.293,"rule":null},{"i":25,"t":"06:20","xbar":5.9802,"r":0.379,"rule":null},{"i":26,"t":"06:21","xbar":6.0418,"r":0.332,"rule":null},{"i":27,"t":"06:22","xbar":6.171,"r":0.355,"rule":null},{"i":28,"t":"06:23","xbar":6.1148,"r":0.326,"rule":null},{"i":29,"t":"06:24","xbar":6.0618,"r":0.421,"rule":null},{"i":30,"t":"06:25","xbar":6.0482,"r":0.426,"rule":null},{"i":31,"t":"06:25","xbar":5.8832,"r":0.397,"rule":null},{"i":32,"t":"06:26","xbar":6.0578,"r":0.508,"rule":null},{"i":33,"t":"06:27","xbar":5.9784,"r":0.406,"rule":null},{"i":34,"t":"06:28","xbar":5.8358,"r":0.307,"rule":null},{"i":35,"t":"06:29","xbar":5.993,"r":0.339,"rule":null},{"i":36,"t":"06:30","xbar":5.968,"r":0.285,"rule":null},{"i":37,"t":"06:30","xbar":5.8972,"r":0.495,"rule":null},{"i":38,"t":"06:31","xbar":6.0334,"r":0.331,"rule":null},{"i":39,"t":"06:32","xbar":6.0454,"r":0.324,"rule":null},{"i":40,"t":"06:33","xbar":6.0186,"r":0.254,"rule":null},{"i":41,"t":"06:34","xbar":6.0872,"r":0.283,"rule":null},{"i":42,"t":"06:35","xbar":5.9816,"r":0.29,"rule":null},{"i":43,"t":"06:35","xbar":5.867,"r":0.312,"rule":null},{"i":44,"t":"06:36","xbar":6.0394,"r":0.238,"rule":null},{"i":45,"t":"06:37","xbar":5.938,"r":0.374,"rule":null},{"i":46,"t":"06:38","xbar":5.8822,"r":0.705,"rule":null},{"i":47,"t":"06:39","xbar":5.9568,"r":0.364,"rule":null},{"i":48,"t":"06:40","xbar":5.9842,"r":0.139,"rule":null},{"i":49,"t":"06:40","xbar":5.9782,"r":0.281,"rule":null},{"i":50,"t":"06:41","xbar":6.05,"r":0.433,"rule":null},{"i":51,"t":"06:42","xbar":5.999,"r":0.361,"rule":null},{"i":52,"t":"06:43","xbar":6.0566,"r":0.456,"rule":null},{"i":53,"t":"06:44","xbar":6.0146,"r":0.264,"rule":null},{"i":54,"t":"06:45","xbar":5.9838,"r":0.344,"rule":null},{"i":55,"t":"06:45","xbar":5.9702,"r":0.445,"rule":null},{"i":56,"t":"06:46","xbar":5.921,"r":0.146,"rule":null},{"i":57,"t":"06:47","xbar":6.035,"r":0.321,"rule":null},{"i":58,"t":"06:48","xbar":5.998,"r":0.235,"rule":null},{"i":59,"t":"06:49","xbar":6.003,"r":0.346,"rule":null},{"i":60,"t":"06:50","xbar":6.051,"r":0.291,"rule":null},{"i":61,"t":"06:50","xbar":6.0192,"r":0.228,"rule":null},{"i":62,"t":"06:51","xbar":5.982,"r":0.303,"rule":null},{"i":63,"t":"06:52","xbar":5.946,"r":0.379,"rule":null},{"i":64,"t":"06:53","xbar":6.027,"r":0.299,"rule":null},{"i":65,"t":"06:54","xbar":5.9812,"r":0.33,"rule":null},{"i":66,"t":"06:55","xbar":5.9372,"r":0.337,"rule":null},{"i":67,"t":"06:55","xbar":6.0724,"r":0.501,"rule":null},{"i":68,"t":"06:56","xbar":6.1294,"r":0.579,"rule":null},{"i":69,"t":"06:57","xbar":6.0292,"r":0.314,"rule":null},{"i":70,"t":"06:58","xbar":6.103,"r":0.255,"rule":null},{"i":71,"t":"06:59","xbar":5.9838,"r":0.307,"rule":null},{"i":72,"t":"07:00","xbar":5.9798,"r":0.461,"rule":null},{"i":73,"t":"07:00","xbar":5.9648,"r":0.443,"rule":null},{"i":74,"t":"07:01","xbar":6.0768,"r":0.556,"rule":null},{"i":75,"t":"07:02","xbar":6.0372,"r":0.2,"rule":null},{"i":76,"t":"07:03","xbar":6.1122,"r":0.383,"rule":null},{"i":77,"t":"07:04","xbar":5.99,"r":0.533,"rule":null},{"i":78,"t":"07:05","xbar":5.9354,"r":0.356,"rule":null},{"i":79,"t":"07:05","xbar":6.0582,"r":0.223,"rule":null},{"i":80,"t":"07:06","xbar":5.9978,"r":0.26,"rule":null},{"i":81,"t":"07:07","xbar":6.0788,"r":0.45,"rule":null},{"i":82,"t":"07:08","xbar":5.8498,"r":0.282,"rule":null},{"i":83,"t":"07:09","xbar":5.9206,"r":0.123,"rule":null},{"i":84,"t":"07:10","xbar":5.9156,"r":0.18,"rule":null},{"i":85,"t":"07:10","xbar":5.907,"r":0.477,"rule":null},{"i":86,"t":"07:11","xbar":6.0944,"r":0.174,"rule":null},{"i":87,"t":"07:12","xbar":6.0034,"r":0.201,"rule":null},{"i":88,"t":"07:13","xbar":5.8822,"r":0.205,"rule":null},{"i":89,"t":"07:14","xbar":5.9636,"r":0.284,"rule":null},{"i":90,"t":"07:15","xbar":6.0752,"r":0.386,"rule":null},{"i":91,"t":"07:15","xbar":6.011,"r":0.207,"rule":null},{"i":92,"t":"07:16","xbar":5.9288,"r":0.215,"rule":null},{"i":93,"t":"07:17","xbar":6.0192,"r":0.319,"rule":null},{"i":94,"t":"07:18","xbar":6.0176,"r":0.353,"rule":null},{"i":95,"t":"07:19","xbar":6.0062,"r":0.334,"rule":null},{"i":96,"t":"07:20","xbar":6.0454,"r":0.264,"rule":null},{"i":97,"t":"07:20","xbar":6.0406,"r":0.414,"rule":null},{"i":98,"t":"07:21","xbar":5.9948,"r":0.168,"rule":null},{"i":99,"t":"07:22","xbar":5.8954,"r":0.281,"rule":null},{"i":100,"t":"07:23","xbar":5.9822,"r":0.569,"rule":null},{"i":101,"t":"07:24","xbar":5.9886,"r":0.333,"rule":null},{"i":102,"t":"07:25","xbar":5.9906,"r":0.321,"rule":null},{"i":103,"t":"07:25","xbar":5.9698,"r":0.453,"rule":null},{"i":104,"t":"07:26","xbar":6.0232,"r":0.191,"rule":null},{"i":105,"t":"07:27","xbar":5.96,"r":0.489,"rule":null},{"i":106,"t":"07:28","xbar":5.989,"r":0.25,"rule":null},{"i":107,"t":"07:29","xbar":6.0172,"r":0.427,"rule":null},{"i":108,"t":"07:30","xbar":5.9436,"r":0.27,"rule":null},{"i":109,"t":"07:30","xbar":5.9172,"r":0.253,"rule":null},{"i":110,"t":"07:31","xbar":5.9218,"r":0.299,"rule":null},{"i":111,"t":"07:32","xbar":6.1112,"r":0.127,"rule":null},{"i":112,"t":"07:33","xbar":6.0202,"r":0.54,"rule":null},{"i":113,"t":"07:34","xbar":5.965,"r":0.423,"rule":null},{"i":114,"t":"07:35","xbar":6.047,"r":0.805,"rule":null},{"i":115,"t":"07:35","xbar":5.9704,"r":0.275,"rule":null},{"i":116,"t":"07:36","xbar":5.964,"r":0.189,"rule":null},{"i":117,"t":"07:37","xbar":5.8784,"r":0.439,"rule":null},{"i":118,"t":"07:38","xbar":6.025,"r":0.25,"rule":null},{"i":119,"t":"07:39","xbar":6.071,"r":0.132,"rule":null},{"i":120,"t":"07:40","xbar":6.0686,"r":0.298,"rule":null},{"i":121,"t":"07:40","xbar":5.9542,"r":0.313,"rule":null},{"i":122,"t":"07:41","xbar":6.0468,"r":0.199,"rule":null},{"i":123,"t":"07:42","xbar":5.9528,"r":0.346,"rule":null},{"i":124,"t":"07:43","xbar":6.0028,"r":0.48,"rule":null},{"i":125,"t":"07:44","xbar":6.0236,"r":0.395,"rule":null},{"i":126,"t":"07:45","xbar":6.0492,"r":0.386,"rule":null},{"i":127,"t":"07:45","xbar":5.91,"r":0.36,"rule":null},{"i":128,"t":"07:46","xbar":6.1172,"r":0.346,"rule":null},{"i":129,"t":"07:47","xbar":6.0272,"r":0.578,"rule":null},{"i":130,"t":"07:48","xbar":6.0334,"r":0.428,"rule":null},{"i":131,"t":"07:49","xbar":5.9882,"r":0.286,"rule":null},{"i":132,"t":"07:50","xbar":5.8514,"r":0.594,"rule":null},{"i":133,"t":"07:50","xbar":5.9792,"r":0.38,"rule":null},{"i":134,"t":"07:51","xbar":6.099,"r":0.289,"rule":null},{"i":135,"t":"07:52","xbar":6.0472,"r":0.248,"rule":null},{"i":136,"t":"07:53","xbar":6.0008,"r":0.255,"rule":null},{"i":137,"t":"07:54","xbar":5.9234,"r":0.244,"rule":null},{"i":138,"t":"07:55","xbar":6.052,"r":0.32,"rule":null},{"i":139,"t":"07:55","xbar":6.0526,"r":0.416,"rule":null},{"i":140,"t":"07:56","xbar":6.0634,"r":0.649,"rule":null},{"i":141,"t":"07:57","xbar":6.1418,"r":0.383,"rule":null},{"i":142,"t":"07:58","xbar":6.064,"r":0.223,"rule":null},{"i":143,"t":"07:59","xbar":6.0246,"r":0.206,"rule":null},{"i":144,"t":"08:00","xbar":6.099,"r":0.655,"rule":null},{"i":145,"t":"08:00","xbar":5.903,"r":0.273,"rule":null},{"i":146,"t":"08:01","xbar":6.0384,"r":0.117,"rule":null},{"i":147,"t":"08:02","xbar":5.9384,"r":0.29,"rule":null},{"i":148,"t":"08:03","xbar":6.0238,"r":0.482,"rule":null},{"i":149,"t":"08:04","xbar":6.0146,"r":0.593,"rule":null},{"i":150,"t":"08:05","xbar":5.9436,"r":0.32,"rule":null},{"i":151,"t":"08:05","xbar":5.9764,"r":0.69,"rule":null},{"i":152,"t":"08:06","xbar":5.994,"r":0.231,"rule":null},{"i":153,"t":"08:07","xbar":6.009,"r":0.597,"rule":null},{"i":154,"t":"08:08","xbar":5.9846,"r":0.183,"rule":null},{"i":155,"t":"08:09","xbar":6.0324,"r":0.394,"rule":null},{"i":156,"t":"08:10","xbar":6.0008,"r":0.284,"rule":null},{"i":157,"t":"08:10","xbar":6.0534,"r":0.438,"rule":null},{"i":158,"t":"08:11","xbar":5.9374,"r":0.175,"rule":null},{"i":159,"t":"08:12","xbar":5.9712,"r":0.266,"rule":null},{"i":160,"t":"08:13","xbar":6.0092,"r":0.289,"rule":null},{"i":161,"t":"08:14","xbar":6.1364,"r":0.27,"rule":null},{"i":162,"t":"08:15","xbar":6.12,"r":0.211,"rule":null},{"i":163,"t":"08:15","xbar":5.9988,"r":0.345,"rule":null},{"i":164,"t":"08:16","xbar":5.9956,"r":0.243,"rule":null},{"i":165,"t":"08:17","xbar":6.0012,"r":0.414,"rule":null},{"i":166,"t":"08:18","xbar":5.9824,"r":0.493,"rule":null},{"i":167,"t":"08:19","xbar":5.9756,"r":0.421,"rule":null},{"i":168,"t":"08:20","xbar":6.023,"r":0.323,"rule":null},{"i":169,"t":"08:20","xbar":5.988,"r":0.469,"rule":null},{"i":170,"t":"08:21","xbar":5.9906,"r":0.303,"rule":null},{"i":171,"t":"08:22","xbar":5.999,"r":0.619,"rule":null},{"i":172,"t":"08:23","xbar":5.9968,"r":0.225,"rule":null},{"i":173,"t":"08:24","xbar":6.1246,"r":0.306,"rule":null},{"i":174,"t":"08:25","xbar":6.027,"r":0.521,"rule":null},{"i":175,"t":"08:25","xbar":6.0006,"r":0.366,"rule":null},{"i":176,"t":"08:26","xbar":6.002,"r":0.561,"rule":null},{"i":177,"t":"08:27","xbar":5.8566,"r":0.369,"rule":null},{"i":178,"t":"08:28","xbar":5.9476,"r":0.31,"rule":null},{"i":179,"t":"08:29","xbar":5.927,"r":0.271,"rule":null},{"i":180,"t":"08:30","xbar":5.949,"r":0.374,"rule":null},{"i":181,"t":"08:30","xbar":5.9766,"r":0.343,"rule":null},{"i":182,"t":"08:31","xbar":6.073,"r":0.327,"rule":null},{"i":183,"t":"08:32","xbar":6.0276,"r":0.748,"rule":null},{"i":184,"t":"08:33","xbar":6.0954,"r":0.207,"rule":null},{"i":185,"t":"08:34","xbar":6.0966,"r":0.424,"rule":null},{"i":186,"t":"08:35","xbar":5.9348,"r":0.313,"rule":null},{"i":187,"t":"08:35","xbar":6.0868,"r":0.268,"rule":null},{"i":188,"t":"08:36","xbar":6.0394,"r":0.222,"rule":null},{"i":189,"t":"08:37","xbar":6.0356,"r":0.576,"rule":null},{"i":190,"t":"08:38","xbar":6.0392,"r":0.253,"rule":null},{"i":191,"t":"08:39","xbar":6.0332,"r":0.345,"rule":null},{"i":192,"t":"08:40","xbar":5.9266,"r":0.279,"rule":null},{"i":193,"t":"08:40","xbar":6.1032,"r":0.198,"rule":null},{"i":194,"t":"08:41","xbar":5.9512,"r":0.375,"rule":null},{"i":195,"t":"08:42","xbar":5.9398,"r":0.204,"rule":null},{"i":196,"t":"08:43","xbar":5.9384,"r":0.206,"rule":null},{"i":197,"t":"08:44","xbar":6.1064,"r":0.205,"rule":null},{"i":198,"t":"08:45","xbar":6.0582,"r":0.308,"rule":null},{"i":199,"t":"08:45","xbar":6.1364,"r":0.442,"rule":null},{"i":200,"t":"08:46","xbar":6.0728,"r":0.513,"rule":null},{"i":201,"t":"08:47","xbar":5.9944,"r":0.235,"rule":null},{"i":202,"t":"08:48","xbar":5.9642,"r":0.579,"rule":null},{"i":203,"t":"08:49","xbar":6.0128,"r":0.237,"rule":null},{"i":204,"t":"08:50","xbar":6.121,"r":0.307,"rule":null},{"i":205,"t":"08:50","xbar":5.9688,"r":0.409,"rule":null},{"i":206,"t":"08:51","xbar":5.9848,"r":0.472,"rule":null},{"i":207,"t":"08:52","xbar":6.0726,"r":0.186,"rule":null},{"i":208,"t":"08:53","xbar":5.9728,"r":0.311,"rule":null},{"i":209,"t":"08:54","xbar":6.0436,"r":0.328,"rule":null},{"i":210,"t":"08:55","xbar":6.0686,"r":0.217,"rule":null},{"i":211,"t":"08:55","xbar":5.9794,"r":0.319,"rule":null},{"i":212,"t":"08:56","xbar":6.062,"r":0.583,"rule":null},{"i":213,"t":"08:57","xbar":5.9806,"r":0.285,"rule":null},{"i":214,"t":"08:58","xbar":6.0678,"r":0.518,"rule":null},{"i":215,"t":"08:59","xbar":5.925,"r":0.353,"rule":null},{"i":216,"t":"09:00","xbar":5.9832,"r":0.355,"rule":null},{"i":217,"t":"09:00","xbar":5.9936,"r":0.405,"rule":null},{"i":218,"t":"09:01","xbar":6.0048,"r":0.543,"rule":null},{"i":219,"t":"09:02","xbar":6.1164,"r":0.393,"rule":null},{"i":220,"t":"09:03","xbar":6.0354,"r":0.225,"rule":null},{"i":221,"t":"09:04","xbar":6.0012,"r":0.317,"rule":null},{"i":222,"t":"09:05","xbar":6.036,"r":0.552,"rule":null},{"i":223,"t":"09:05","xbar":5.9996,"r":0.439,"rule":null},{"i":224,"t":"09:06","xbar":5.9276,"r":0.339,"rule":null},{"i":225,"t":"09:07","xbar":6.0422,"r":0.276,"rule":null},{"i":226,"t":"09:08","xbar":6.0352,"r":0.602,"rule":null},{"i":227,"t":"09:09","xbar":6.0408,"r":0.53,"rule":null},{"i":228,"t":"09:10","xbar":5.9228,"r":0.131,"rule":null},{"i":229,"t":"09:10","xbar":6.1974,"r":0.353,"rule":null},{"i":230,"t":"09:11","xbar":5.9502,"r":0.638,"rule":null},{"i":231,"t":"09:12","xbar":6.0344,"r":0.29,"rule":null},{"i":232,"t":"09:13","xbar":5.9022,"r":0.593,"rule":null},{"i":233,"t":"09:14","xbar":6.0858,"r":0.558,"rule":null},{"i":234,"t":"09:15","xbar":6.0458,"r":0.246,"rule":null},{"i":235,"t":"09:15","xbar":6.0576,"r":0.27,"rule":null},{"i":236,"t":"09:16","xbar":5.969,"r":0.331,"rule":null},{"i":237,"t":"09:17","xbar":5.9654,"r":0.313,"rule":null},{"i":238,"t":"09:18","xbar":5.9892,"r":0.159,"rule":null},{"i":239,"t":"09:19","xbar":6.0798,"r":0.29,"rule":null},{"i":240,"t":"09:20","xbar":6.0048,"r":0.26,"rule":null},{"i":241,"t":"09:20","xbar":6.0188,"r":0.329,"rule":null},{"i":242,"t":"09:21","xbar":6.0142,"r":0.129,"rule":null},{"i":243,"t":"09:22","xbar":6.1446,"r":0.754,"rule":null},{"i":244,"t":"09:23","xbar":6.0656,"r":0.337,"rule":null},{"i":245,"t":"09:24","xbar":6.0896,"r":0.366,"rule":null},{"i":246,"t":"09:25","xbar":5.971,"r":0.354,"rule":null},{"i":247,"t":"09:25","xbar":5.916,"r":0.166,"rule":null},{"i":248,"t":"09:26","xbar":6.0882,"r":0.314,"rule":null},{"i":249,"t":"09:27","xbar":6.0838,"r":0.221,"rule":null},{"i":250,"t":"09:28","xbar":6.0408,"r":0.447,"rule":null},{"i":251,"t":"09:29","xbar":6.0138,"r":0.453,"rule":null},{"i":252,"t":"09:30","xbar":5.9918,"r":0.597,"rule":null},{"i":253,"t":"09:30","xbar":6.0172,"r":0.258,"rule":null},{"i":254,"t":"09:31","xbar":5.9598,"r":0.473,"rule":null},{"i":255,"t":"09:32","xbar":6.049,"r":0.297,"rule":null},{"i":256,"t":"09:33","xbar":5.9904,"r":0.398,"rule":null},{"i":257,"t":"09:34","xbar":6.0408,"r":0.38,"rule":null},{"i":258,"t":"09:35","xbar":6.0122,"r":0.298,"rule":null},{"i":259,"t":"09:35","xbar":5.9618,"r":0.364,"rule":null},{"i":260,"t":"09:36","xbar":5.8512,"r":0.493,"rule":null},{"i":261,"t":"09:37","xbar":6.0514,"r":0.473,"rule":null},{"i":262,"t":"09:38","xbar":5.9872,"r":0.409,"rule":null},{"i":263,"t":"09:39","xbar":5.972,"r":0.413,"rule":null},{"i":264,"t":"09:40","xbar":6.0752,"r":0.269,"rule":null},{"i":265,"t":"09:40","xbar":5.9822,"r":0.458,"rule":null},{"i":266,"t":"09:41","xbar":6.04,"r":0.298,"rule":null},{"i":267,"t":"09:42","xbar":6.0306,"r":0.317,"rule":null},{"i":268,"t":"09:43","xbar":6.1514,"r":0.264,"rule":null},{"i":269,"t":"09:44","xbar":5.94,"r":0.53,"rule":null},{"i":270,"t":"09:45","xbar":6.1008,"r":0.284,"rule":null},{"i":271,"t":"09:45","xbar":6.0728,"r":0.44,"rule":null},{"i":272,"t":"09:46","xbar":5.9906,"r":0.097,"rule":null},{"i":273,"t":"09:47","xbar":6.099,"r":0.595,"rule":null},{"i":274,"t":"09:48","xbar":5.989,"r":0.388,"rule":null},{"i":275,"t":"09:49","xbar":5.9556,"r":0.295,"rule":null},{"i":276,"t":"09:50","xbar":6.0382,"r":0.273,"rule":null},{"i":277,"t":"09:50","xbar":5.9618,"r":0.363,"rule":null},{"i":278,"t":"09:51","xbar":6.0396,"r":0.263,"rule":null},{"i":279,"t":"09:52","xbar":6.0218,"r":0.492,"rule":null},{"i":280,"t":"09:53","xbar":5.9594,"r":0.596,"rule":null},{"i":281,"t":"09:54","xbar":6.0556,"r":0.218,"rule":null},{"i":282,"t":"09:55","xbar":6.0862,"r":0.163,"rule":null},{"i":283,"t":"09:55","xbar":5.9684,"r":0.448,"rule":null},{"i":284,"t":"09:56","xbar":5.9028,"r":0.377,"rule":null},{"i":285,"t":"09:57","xbar":5.8912,"r":0.402,"rule":null},{"i":286,"t":"09:58","xbar":6.0604,"r":0.211,"rule":null},{"i":287,"t":"09:59","xbar":5.8654,"r":0.381,"rule":null},{"i":288,"t":"10:00","xbar":6.0588,"r":0.41,"rule":null},{"i":289,"t":"10:00","xbar":6.0108,"r":0.424,"rule":null},{"i":290,"t":"10:01","xbar":6.028,"r":0.395,"rule":null},{"i":291,"t":"10:02","xbar":5.92,"r":0.366,"rule":null},{"i":292,"t":"10:03","xbar":6.0752,"r":0.204,"rule":null},{"i":293,"t":"10:04","xbar":6.0278,"r":0.505,"rule":null},{"i":294,"t":"10:05","xbar":5.9814,"r":0.437,"rule":null},{"i":295,"t":"10:05","xbar":6.0112,"r":0.234,"rule":null},{"i":296,"t":"10:06","xbar":5.9984,"r":0.349,"rule":null},{"i":297,"t":"10:07","xbar":5.8568,"r":0.319,"rule":null},{"i":298,"t":"10:08","xbar":6.0002,"r":0.2,"rule":null},{"i":299,"t":"10:09","xbar":6.0202,"r":0.245,"rule":null},{"i":300,"t":"10:10","xbar":5.9706,"r":0.318,"rule":null},{"i":301,"t":"10:10","xbar":6.0522,"r":0.16,"rule":null},{"i":302,"t":"10:11","xbar":6.0148,"r":0.446,"rule":null},{"i":303,"t":"10:12","xbar":5.9094,"r":0.268,"rule":null},{"i":304,"t":"10:13","xbar":6.0176,"r":0.316,"rule":null},{"i":305,"t":"10:14","xbar":6.0766,"r":0.609,"rule":null},{"i":306,"t":"10:15","xbar":6.021,"r":0.268,"rule":null},{"i":307,"t":"10:15","xbar":6.0738,"r":0.276,"rule":null},{"i":308,"t":"10:16","xbar":5.932,"r":0.162,"rule":null},{"i":309,"t":"10:17","xbar":5.9878,"r":0.176,"rule":null},{"i":310,"t":"10:18","xbar":5.9888,"r":0.4,"rule":null},{"i":311,"t":"10:19","xbar":5.9996,"r":0.329,"rule":null},{"i":312,"t":"10:20","xbar":5.9272,"r":0.165,"rule":null},{"i":313,"t":"10:20","xbar":6.0446,"r":0.356,"rule":null},{"i":314,"t":"10:21","xbar":5.9454,"r":0.07,"rule":null},{"i":315,"t":"10:22","xbar":6.0018,"r":0.543,"rule":null},{"i":316,"t":"10:23","xbar":6.0788,"r":0.386,"rule":null},{"i":317,"t":"10:24","xbar":6.0348,"r":0.33,"rule":null},{"i":318,"t":"10:25","xbar":6.0368,"r":0.469,"rule":null},{"i":319,"t":"10:25","xbar":6.0344,"r":0.166,"rule":null},{"i":320,"t":"10:26","xbar":6.082,"r":0.484,"rule":null},{"i":321,"t":"10:27","xbar":6.0468,"r":0.222,"rule":null},{"i":322,"t":"10:28","xbar":5.9676,"r":0.361,"rule":null},{"i":323,"t":"10:29","xbar":6.1384,"r":0.555,"rule":null},{"i":324,"t":"10:30","xbar":5.9806,"r":0.547,"rule":null},{"i":325,"t":"10:30","xbar":5.953,"r":0.417,"rule":null},{"i":326,"t":"10:31","xbar":5.9482,"r":0.253,"rule":null},{"i":327,"t":"10:32","xbar":5.9596,"r":0.164,"rule":null},{"i":328,"t":"10:33","xbar":5.9652,"r":0.165,"rule":null},{"i":329,"t":"10:34","xbar":5.9014,"r":0.239,"rule":null},{"i":330,"t":"10:35","xbar":6.0676,"r":0.58,"rule":null},{"i":331,"t":"10:35","xbar":6.0432,"r":0.345,"rule":null},{"i":332,"t":"10:36","xbar":5.9958,"r":0.257,"rule":null},{"i":333,"t":"10:37","xbar":6.0572,"r":0.718,"rule":null},{"i":334,"t":"10:38","xbar":6.0452,"r":0.365,"rule":null},{"i":335,"t":"10:39","xbar":6.1486,"r":0.194,"rule":null},{"i":336,"t":"10:40","xbar":6.0098,"r":0.585,"rule":null},{"i":337,"t":"10:40","xbar":6.076,"r":0.229,"rule":null},{"i":338,"t":"10:41","xbar":5.9664,"r":0.621,"rule":null},{"i":339,"t":"10:42","xbar":6.0752,"r":0.489,"rule":null},{"i":340,"t":"10:43","xbar":6.0376,"r":0.531,"rule":null},{"i":341,"t":"10:44","xbar":5.8764,"r":0.359,"rule":null},{"i":342,"t":"10:45","xbar":5.954,"r":0.197,"rule":null},{"i":343,"t":"10:45","xbar":5.9794,"r":0.405,"rule":null},{"i":344,"t":"10:46","xbar":5.9508,"r":0.361,"rule":null},{"i":345,"t":"10:47","xbar":5.9474,"r":0.364,"rule":null},{"i":346,"t":"10:48","xbar":6.0642,"r":0.332,"rule":null},{"i":347,"t":"10:49","xbar":6.0156,"r":0.159,"rule":null},{"i":348,"t":"10:50","xbar":6.0306,"r":0.327,"rule":null},{"i":349,"t":"10:50","xbar":5.8542,"r":0.333,"rule":null},{"i":350,"t":"10:51","xbar":5.994,"r":0.287,"rule":null},{"i":351,"t":"10:52","xbar":6.0216,"r":0.203,"rule":null},{"i":352,"t":"10:53","xbar":6.0668,"r":0.29,"rule":null},{"i":353,"t":"10:54","xbar":5.9814,"r":0.253,"rule":null},{"i":354,"t":"10:55","xbar":5.9848,"r":0.247,"rule":null},{"i":355,"t":"10:55","xbar":5.957,"r":0.338,"rule":null},{"i":356,"t":"10:56","xbar":5.9226,"r":0.32,"rule":null},{"i":357,"t":"10:57","xbar":5.9432,"r":0.391,"rule":null},{"i":358,"t":"10:58","xbar":6.0722,"r":0.152,"rule":null},{"i":359,"t":"10:59","xbar":5.9854,"r":0.272,"rule":null},{"i":360,"t":"11:00","xbar":6.058,"r":0.612,"rule":null},{"i":361,"t":"11:00","xbar":5.9878,"r":0.309,"rule":null},{"i":362,"t":"11:01","xbar":6.0196,"r":0.634,"rule":null},{"i":363,"t":"11:02","xbar":6.1524,"r":0.437,"rule":null},{"i":364,"t":"11:03","xbar":6.0904,"r":0.325,"rule":null},{"i":365,"t":"11:04","xbar":5.9376,"r":0.605,"rule":null},{"i":366,"t":"11:05","xbar":6.184,"r":0.693,"rule":null},{"i":367,"t":"11:05","xbar":5.8314,"r":0.738,"rule":null},{"i":368,"t":"11:06","xbar":6.0712,"r":0.48,"rule":null},{"i":369,"t":"11:07","xbar":5.9618,"r":0.62,"rule":null},{"i":370,"t":"11:08","xbar":5.8964,"r":0.437,"rule":null},{"i":371,"t":"11:09","xbar":5.9178,"r":0.593,"rule":null},{"i":372,"t":"11:10","xbar":5.8102,"r":0.458,"rule":"Rule1"},{"i":373,"t":"11:10","xbar":5.8814,"r":0.546,"rule":null},{"i":374,"t":"11:11","xbar":5.7186,"r":0.83,"rule":"Rule1"},{"i":375,"t":"11:12","xbar":5.9154,"r":0.593,"rule":null},{"i":376,"t":"11:13","xbar":5.9328,"r":0.597,"rule":null},{"i":377,"t":"11:14","xbar":5.7724,"r":0.396,"rule":"Rule1"},{"i":378,"t":"11:15","xbar":6.0332,"r":0.538,"rule":null},{"i":379,"t":"11:15","xbar":5.974,"r":0.368,"rule":null},{"i":380,"t":"11:16","xbar":6.0362,"r":0.66,"rule":null},{"i":381,"t":"11:17","xbar":5.8914,"r":0.605,"rule":null},{"i":382,"t":"11:18","xbar":5.8414,"r":0.569,"rule":null},{"i":383,"t":"11:19","xbar":6.0012,"r":0.504,"rule":null},{"i":384,"t":"11:20","xbar":5.876,"r":0.309,"rule":null},{"i":385,"t":"11:20","xbar":5.944,"r":0.998,"rule":null},{"i":386,"t":"11:21","xbar":6.0052,"r":0.515,"rule":null},{"i":387,"t":"11:22","xbar":5.8928,"r":0.635,"rule":null},{"i":388,"t":"11:23","xbar":5.9076,"r":0.479,"rule":null},{"i":389,"t":"11:24","xbar":6.0654,"r":0.806,"rule":null},{"i":390,"t":"11:25","xbar":5.8018,"r":0.204,"rule":"Rule1"},{"i":391,"t":"11:25","xbar":5.8134,"r":0.54,"rule":"Rule1"},{"i":392,"t":"11:26","xbar":5.8964,"r":0.506,"rule":null},{"i":393,"t":"11:27","xbar":5.924,"r":0.617,"rule":null},{"i":394,"t":"11:28","xbar":5.7848,"r":0.226,"rule":"Rule1"},{"i":395,"t":"11:29","xbar":5.8608,"r":0.685,"rule":null},{"i":396,"t":"11:30","xbar":5.9882,"r":0.819,"rule":null},{"i":397,"t":"11:30","xbar":5.8918,"r":0.669,"rule":null},{"i":398,"t":"11:31","xbar":5.8452,"r":0.391,"rule":"Rule2"},{"i":399,"t":"11:32","xbar":5.9254,"r":0.467,"rule":"Rule2"},{"i":400,"t":"11:33","xbar":5.8664,"r":0.701,"rule":"Rule2"},{"i":401,"t":"11:34","xbar":5.8934,"r":0.597,"rule":"Rule2"},{"i":402,"t":"11:35","xbar":5.9436,"r":0.711,"rule":"Rule2"},{"i":403,"t":"11:35","xbar":5.839,"r":0.608,"rule":"Rule2"},{"i":404,"t":"11:36","xbar":5.922,"r":0.648,"rule":"Rule2"},{"i":405,"t":"11:37","xbar":5.6646,"r":0.284,"rule":"Rule1"},{"i":406,"t":"11:38","xbar":5.8014,"r":0.232,"rule":"Rule1"},{"i":407,"t":"11:39","xbar":5.8832,"r":0.583,"rule":"Rule2"},{"i":408,"t":"11:40","xbar":5.9366,"r":0.682,"rule":"Rule2"},{"i":409,"t":"11:40","xbar":5.9486,"r":0.392,"rule":"Rule2"},{"i":410,"t":"11:41","xbar":5.98,"r":0.24,"rule":"Rule2"},{"i":411,"t":"11:42","xbar":5.9028,"r":0.84,"rule":"Rule2"},{"i":412,"t":"11:43","xbar":5.8648,"r":0.43,"rule":"Rule2"},{"i":413,"t":"11:44","xbar":5.9446,"r":0.313,"rule":"Rule2"},{"i":414,"t":"11:45","xbar":5.7982,"r":0.535,"rule":"Rule1"},{"i":415,"t":"11:45","xbar":5.8614,"r":0.744,"rule":"Rule2"},{"i":416,"t":"11:46","xbar":5.9414,"r":0.34,"rule":"Rule2"},{"i":417,"t":"11:47","xbar":5.8056,"r":0.221,"rule":"Rule1"},{"i":418,"t":"11:48","xbar":5.7322,"r":0.931,"rule":"Rule1"},{"i":419,"t":"11:49","xbar":5.89,"r":0.54,"rule":"Rule2"},{"i":420,"t":"11:50","xbar":5.7062,"r":0.34,"rule":"Rule1"},{"i":421,"t":"11:50","xbar":5.8984,"r":0.75,"rule":"Rule2"},{"i":422,"t":"11:51","xbar":5.757,"r":0.584,"rule":"Rule1"},{"i":423,"t":"11:52","xbar":5.7942,"r":0.628,"rule":"Rule1"},{"i":424,"t":"11:53","xbar":5.8398,"r":0.239,"rule":"Rule2"},{"i":425,"t":"11:54","xbar":5.7664,"r":0.232,"rule":"Rule1"},{"i":426,"t":"11:55","xbar":5.6124,"r":0.31,"rule":"Rule1"},{"i":427,"t":"11:55","xbar":5.7712,"r":0.558,"rule":"Rule1"},{"i":428,"t":"11:56","xbar":5.6812,"r":0.768,"rule":"Rule1"},{"i":429,"t":"11:57","xbar":5.6992,"r":0.307,"rule":"Rule1"},{"i":430,"t":"11:58","xbar":5.5548,"r":0.522,"rule":"Rule1"},{"i":431,"t":"11:59","xbar":5.833,"r":0.482,"rule":"Rule2"},{"i":432,"t":"12:00","xbar":5.7758,"r":1.057,"rule":"Rule1"},{"i":433,"t":"12:00","xbar":5.6866,"r":0.416,"rule":"Rule1"},{"i":434,"t":"12:01","xbar":5.7606,"r":0.483,"rule":"Rule1"},{"i":435,"t":"12:02","xbar":5.73,"r":0.558,"rule":"Rule1"},{"i":436,"t":"12:03","xbar":5.7306,"r":1.061,"rule":"Rule1"},{"i":437,"t":"12:04","xbar":5.7468,"r":0.508,"rule":"Rule1"},{"i":438,"t":"12:05","xbar":5.8468,"r":0.249,"rule":"Rule2"},{"i":439,"t":"12:05","xbar":5.7282,"r":0.719,"rule":"Rule1"},{"i":440,"t":"12:06","xbar":5.83,"r":0.594,"rule":"Rule2"},{"i":441,"t":"12:07","xbar":5.7836,"r":0.32,"rule":"Rule1"},{"i":442,"t":"12:08","xbar":5.8978,"r":0.466,"rule":"Rule2"},{"i":443,"t":"12:09","xbar":5.8264,"r":0.308,"rule":"Rule2"},{"i":444,"t":"12:10","xbar":5.7478,"r":0.332,"rule":"Rule1"},{"i":445,"t":"12:10","xbar":5.6538,"r":0.421,"rule":"Rule1"},{"i":446,"t":"12:11","xbar":5.8482,"r":0.507,"rule":"Rule2"},{"i":447,"t":"12:12","xbar":5.7214,"r":0.541,"rule":"Rule1"},{"i":448,"t":"12:13","xbar":5.7616,"r":0.414,"rule":"Rule1"},{"i":449,"t":"12:14","xbar":5.6938,"r":0.53,"rule":"Rule1"},{"i":450,"t":"12:15","xbar":5.5586,"r":0.701,"rule":"Rule1"},{"i":451,"t":"12:15","xbar":5.693,"r":0.799,"rule":"Rule1"},{"i":452,"t":"12:16","xbar":5.6524,"r":0.315,"rule":"Rule1"},{"i":453,"t":"12:17","xbar":5.4918,"r":0.755,"rule":"Rule1"},{"i":454,"t":"12:18","xbar":5.5578,"r":0.351,"rule":"Rule1"},{"i":455,"t":"12:19","xbar":5.872,"r":0.681,"rule":"Rule2"},{"i":456,"t":"12:20","xbar":5.8416,"r":0.447,"rule":"Rule2"},{"i":457,"t":"12:20","xbar":5.7316,"r":0.329,"rule":"Rule1"},{"i":458,"t":"12:21","xbar":5.5504,"r":0.777,"rule":"Rule1"},{"i":459,"t":"12:22","xbar":5.7104,"r":0.473,"rule":"Rule1"},{"i":460,"t":"12:23","xbar":5.833,"r":0.569,"rule":"Rule2"},{"i":461,"t":"12:24","xbar":5.6874,"r":0.349,"rule":"Rule1"},{"i":462,"t":"12:25","xbar":5.6734,"r":0.605,"rule":"Rule1"},{"i":463,"t":"12:25","xbar":5.4972,"r":0.639,"rule":"Rule1"},{"i":464,"t":"12:26","xbar":5.6762,"r":0.276,"rule":"Rule1"},{"i":465,"t":"12:27","xbar":5.6518,"r":0.339,"rule":"Rule1"},{"i":466,"t":"12:28","xbar":5.5218,"r":0.403,"rule":"Rule1"},{"i":467,"t":"12:29","xbar":5.5626,"r":0.392,"rule":"Rule1"},{"i":468,"t":"12:30","xbar":5.7122,"r":0.767,"rule":"Rule1"},{"i":469,"t":"12:30","xbar":5.6756,"r":0.372,"rule":"Rule1"},{"i":470,"t":"12:31","xbar":5.6032,"r":0.52,"rule":"Rule1"},{"i":471,"t":"12:32","xbar":5.5372,"r":0.307,"rule":"Rule1"},{"i":472,"t":"12:33","xbar":5.5732,"r":0.678,"rule":"Rule1"},{"i":473,"t":"12:34","xbar":5.6724,"r":0.377,"rule":"Rule1"},{"i":474,"t":"12:35","xbar":5.519,"r":0.772,"rule":"Rule1"},{"i":475,"t":"12:35","xbar":5.751,"r":0.397,"rule":"Rule1"},{"i":476,"t":"12:36","xbar":5.6854,"r":0.27,"rule":"Rule1"},{"i":477,"t":"12:37","xbar":5.8568,"r":0.393,"rule":"Rule2"},{"i":478,"t":"12:38","xbar":5.5524,"r":0.182,"rule":"Rule1"},{"i":479,"t":"12:39","xbar":5.6268,"r":0.4,"rule":"Rule1"},{"i":480,"t":"12:40","xbar":5.6264,"r":0.412,"rule":"Rule1"},{"i":481,"t":"12:40","xbar":5.6,"r":0.363,"rule":"Rule1"},{"i":482,"t":"12:41","xbar":5.5484,"r":0.259,"rule":"Rule1"},{"i":483,"t":"12:42","xbar":5.6624,"r":0.67,"rule":"Rule1"},{"i":484,"t":"12:43","xbar":5.6352,"r":0.44,"rule":"Rule1"},{"i":485,"t":"12:44","xbar":5.6128,"r":0.645,"rule":"Rule1"},{"i":486,"t":"12:45","xbar":5.6414,"r":0.272,"rule":"Rule1"},{"i":487,"t":"12:45","xbar":5.7626,"r":0.614,"rule":"Rule1"},{"i":488,"t":"12:46","xbar":5.5074,"r":0.441,"rule":"Rule1"},{"i":489,"t":"12:47","xbar":5.6682,"r":0.9,"rule":"Rule1"},{"i":490,"t":"12:48","xbar":5.5678,"r":0.294,"rule":"Rule1"},{"i":491,"t":"12:49","xbar":5.498,"r":0.605,"rule":"Rule1"},{"i":492,"t":"12:50","xbar":5.4756,"r":0.343,"rule":"Rule1"},{"i":493,"t":"12:50","xbar":5.481,"r":0.379,"rule":"Rule1"},{"i":494,"t":"12:51","xbar":5.6152,"r":0.365,"rule":"Rule1"},{"i":495,"t":"12:52","xbar":5.562,"r":0.538,"rule":"Rule1"},{"i":496,"t":"12:53","xbar":5.5898,"r":0.52,"rule":"Rule1"},{"i":497,"t":"12:54","xbar":5.4772,"r":0.755,"rule":"Rule1"},{"i":498,"t":"12:55","xbar":5.6352,"r":0.492,"rule":"Rule1"},{"i":499,"t":"12:55","xbar":5.5732,"r":0.867,"rule":"Rule1"},{"i":500,"t":"12:56","xbar":5.4732,"r":0.433,"rule":"Rule1"},{"i":501,"t":"12:57","xbar":5.5674,"r":0.591,"rule":"Rule1"},{"i":502,"t":"12:58","xbar":5.6054,"r":0.576,"rule":"Rule1"},{"i":503,"t":"12:59","xbar":5.5584,"r":0.158,"rule":"Rule1"},{"i":504,"t":"13:00","xbar":5.5522,"r":0.546,"rule":"Rule1"},{"i":505,"t":"13:00","xbar":5.5944,"r":0.451,"rule":"Rule1"},{"i":506,"t":"13:01","xbar":5.5996,"r":0.89,"rule":"Rule1"},{"i":507,"t":"13:02","xbar":5.4492,"r":0.235,"rule":"Rule1"},{"i":508,"t":"13:03","xbar":5.3942,"r":0.568,"rule":"Rule1"},{"i":509,"t":"13:04","xbar":5.7294,"r":0.383,"rule":"Rule1"},{"i":510,"t":"13:05","xbar":5.5724,"r":0.75,"rule":"Rule1"},{"i":511,"t":"13:05","xbar":5.5782,"r":0.559,"rule":"Rule1"},{"i":512,"t":"13:06","xbar":5.2646,"r":0.699,"rule":"Rule1"},{"i":513,"t":"13:07","xbar":5.3784,"r":0.365,"rule":"Rule1"},{"i":514,"t":"13:08","xbar":5.487,"r":0.764,"rule":"Rule1"},{"i":515,"t":"13:09","xbar":5.3506,"r":0.224,"rule":"Rule1"},{"i":516,"t":"13:10","xbar":5.4556,"r":0.274,"rule":"Rule1"},{"i":517,"t":"13:10","xbar":5.5284,"r":0.64,"rule":"Rule1"},{"i":518,"t":"13:11","xbar":5.3446,"r":0.377,"rule":"Rule1"},{"i":519,"t":"13:12","xbar":5.5522,"r":0.254,"rule":"Rule1"},{"i":520,"t":"13:13","xbar":5.2622,"r":0.568,"rule":"Rule1"},{"i":521,"t":"13:14","xbar":5.6466,"r":0.281,"rule":"Rule1"},{"i":522,"t":"13:15","xbar":5.4262,"r":0.236,"rule":"Rule1"},{"i":523,"t":"13:15","xbar":5.4318,"r":0.314,"rule":"Rule1"},{"i":524,"t":"13:16","xbar":5.5264,"r":0.343,"rule":"Rule1"},{"i":525,"t":"13:17","xbar":5.4054,"r":0.481,"rule":"Rule1"},{"i":526,"t":"13:18","xbar":5.4342,"r":0.861,"rule":"Rule1"},{"i":527,"t":"13:19","xbar":5.6592,"r":0.268,"rule":"Rule1"},{"i":528,"t":"13:20","xbar":5.5188,"r":0.41,"rule":"Rule1"},{"i":529,"t":"13:20","xbar":5.5198,"r":0.626,"rule":"Rule1"},{"i":530,"t":"13:21","xbar":5.4962,"r":0.815,"rule":"Rule1"},{"i":531,"t":"13:22","xbar":5.37,"r":0.381,"rule":"Rule1"},{"i":532,"t":"13:23","xbar":5.4332,"r":0.639,"rule":"Rule1"},{"i":533,"t":"13:24","xbar":5.3846,"r":0.359,"rule":"Rule1"},{"i":534,"t":"13:25","xbar":5.4904,"r":0.279,"rule":"Rule1"},{"i":535,"t":"13:25","xbar":5.304,"r":0.661,"rule":"Rule1"},{"i":536,"t":"13:26","xbar":5.391,"r":0.58,"rule":"Rule1"},{"i":537,"t":"13:27","xbar":5.4718,"r":0.617,"rule":"Rule1"},{"i":538,"t":"13:28","xbar":5.3034,"r":0.439,"rule":"Rule1"},{"i":539,"t":"13:29","xbar":5.4162,"r":0.461,"rule":"Rule1"},{"i":540,"t":"13:30","xbar":5.532,"r":0.834,"rule":"Rule1"},{"i":541,"t":"13:30","xbar":5.3744,"r":0.698,"rule":"Rule1"},{"i":542,"t":"13:31","xbar":5.3928,"r":0.363,"rule":"Rule1"},{"i":543,"t":"13:32","xbar":5.574,"r":0.482,"rule":"Rule1"},{"i":544,"t":"13:33","xbar":5.4324,"r":0.651,"rule":"Rule1"},{"i":545,"t":"13:34","xbar":5.429,"r":0.285,"rule":"Rule1"},{"i":546,"t":"13:35","xbar":5.3398,"r":0.265,"rule":"Rule1"},{"i":547,"t":"13:35","xbar":5.3436,"r":0.794,"rule":"Rule1"},{"i":548,"t":"13:36","xbar":5.3812,"r":0.501,"rule":"Rule1"},{"i":549,"t":"13:37","xbar":5.4522,"r":0.655,"rule":"Rule1"},{"i":550,"t":"13:38","xbar":5.3208,"r":0.448,"rule":"Rule1"},{"i":551,"t":"13:39","xbar":5.3212,"r":0.344,"rule":"Rule1"},{"i":552,"t":"13:40","xbar":5.3704,"r":0.74,"rule":"Rule1"},{"i":553,"t":"13:40","xbar":5.2754,"r":0.498,"rule":"Rule1"},{"i":554,"t":"13:41","xbar":5.5632,"r":0.732,"rule":"Rule1"},{"i":555,"t":"13:42","xbar":5.3432,"r":0.339,"rule":"Rule1"},{"i":556,"t":"13:43","xbar":5.3874,"r":0.433,"rule":"Rule1"},{"i":557,"t":"13:44","xbar":5.37,"r":0.347,"rule":"Rule1"},{"i":558,"t":"13:45","xbar":5.3808,"r":0.215,"rule":"Rule1"},{"i":559,"t":"13:45","xbar":5.2272,"r":0.629,"rule":"Rule1"},{"i":560,"t":"13:46","xbar":5.4516,"r":0.716,"rule":"Rule1"},{"i":561,"t":"13:47","xbar":5.1844,"r":0.781,"rule":"Rule1"},{"i":562,"t":"13:48","xbar":5.4658,"r":0.617,"rule":"Rule1"},{"i":563,"t":"13:49","xbar":5.3542,"r":0.331,"rule":"Rule1"},{"i":564,"t":"13:50","xbar":5.281,"r":0.725,"rule":"Rule1"},{"i":565,"t":"13:50","xbar":5.5006,"r":0.321,"rule":"Rule1"},{"i":566,"t":"13:51","xbar":5.5622,"r":0.588,"rule":"Rule1"},{"i":567,"t":"13:52","xbar":5.3606,"r":0.68,"rule":"Rule1"},{"i":568,"t":"13:53","xbar":5.247,"r":0.388,"rule":"Rule1"},{"i":569,"t":"13:54","xbar":5.3388,"r":0.302,"rule":"Rule1"},{"i":570,"t":"13:55","xbar":5.3686,"r":0.362,"rule":"Rule1"},{"i":571,"t":"13:55","xbar":5.2366,"r":0.652,"rule":"Rule1"},{"i":572,"t":"13:56","xbar":5.1306,"r":0.468,"rule":"Rule1"},{"i":573,"t":"13:57","xbar":5.1798,"r":0.863,"rule":"Rule1"},{"i":574,"t":"13:58","xbar":5.1614,"r":0.354,"rule":"Rule1"},{"i":575,"t":"13:59","xbar":5.258,"r":0.364,"rule":"Rule1"},{"i":576,"t":"14:00","xbar":5.3252,"r":0.395,"rule":"Rule1"},{"i":577,"t":"14:00","xbar":5.283,"r":0.853,"rule":"Rule1"},{"i":578,"t":"14:01","xbar":5.4616,"r":0.473,"rule":"Rule1"},{"i":579,"t":"14:02","xbar":5.2604,"r":0.566,"rule":"Rule1"},{"i":580,"t":"14:03","xbar":5.1118,"r":0.453,"rule":"Rule1"},{"i":581,"t":"14:04","xbar":5.1256,"r":0.552,"rule":"Rule1"},{"i":582,"t":"14:05","xbar":5.1478,"r":0.559,"rule":"Rule1"},{"i":583,"t":"14:05","xbar":5.241,"r":0.327,"rule":"Rule1"},{"i":584,"t":"14:06","xbar":5.1076,"r":0.427,"rule":"Rule1"},{"i":585,"t":"14:07","xbar":5.1482,"r":0.387,"rule":"Rule1"},{"i":586,"t":"14:08","xbar":5.2588,"r":0.567,"rule":"Rule1"},{"i":587,"t":"14:09","xbar":5.213,"r":0.828,"rule":"Rule1"},{"i":588,"t":"14:10","xbar":5.1498,"r":0.599,"rule":"Rule1"},{"i":589,"t":"14:10","xbar":5.2704,"r":0.376,"rule":"Rule1"},{"i":590,"t":"14:11","xbar":5.0958,"r":0.629,"rule":"Rule1"},{"i":591,"t":"14:12","xbar":5.177,"r":0.435,"rule":"Rule1"},{"i":592,"t":"14:13","xbar":5.17,"r":0.489,"rule":"Rule1"},{"i":593,"t":"14:14","xbar":5.177,"r":0.561,"rule":"Rule1"},{"i":594,"t":"14:15","xbar":5.2318,"r":0.822,"rule":"Rule1"},{"i":595,"t":"14:15","xbar":5.3382,"r":0.36,"rule":"Rule1"},{"i":596,"t":"14:16","xbar":5.0894,"r":0.503,"rule":"Rule1"},{"i":597,"t":"14:17","xbar":5.0478,"r":0.492,"rule":"Rule1"},{"i":598,"t":"14:18","xbar":5.1638,"r":0.633,"rule":"Rule1"},{"i":599,"t":"14:19","xbar":5.421,"r":0.458,"rule":"Rule1"}],"periodic_samples":[{"row":1,"t":"06:00","value":6.19,"defect":false},{"row":181,"t":"06:30","value":5.93,"defect":false},{"row":361,"t":"07:00","value":6.22,"defect":false},{"row":541,"t":"07:30","value":5.96,"defect":false},{"row":721,"t":"08:00","value":6.207,"defect":false},{"row":901,"t":"08:30","value":5.994,"defect":false},{"row":1081,"t":"09:00","value":5.981,"defect":false},{"row":1261,"t":"09:30","value":6.297,"defect":false},{"row":1441,"t":"10:00","value":5.796,"defect":false},{"row":1621,"t":"10:30","value":5.819,"defect":false},{"row":1801,"t":"11:00","value":6.339,"defect":false},{"row":1981,"t":"11:30","value":5.924,"defect":false},{"row":2161,"t":"12:00","value":5.133,"defect":true},{"row":2341,"t":"12:30","value":5.556,"defect":false},{"row":2521,"t":"13:00","value":5.744,"defect":false},{"row":2701,"t":"13:30","value":5.855,"defect":false},{"row":2881,"t":"14:00","value":5.489,"defect":false}]};
+
+const css = getComputedStyle(document.documentElement);
+const C = {
+  blue: css.getPropertyValue('--series-blue').trim(),
+  orange: css.getPropertyValue('--series-orange').trim(),
+  aqua: css.getPropertyValue('--series-aqua').trim(),
+  good: css.getPropertyValue('--status-good').trim(),
+  warn: css.getPropertyValue('--status-warning').trim(),
+  crit: css.getPropertyValue('--status-critical').trim(),
+  grid: css.getPropertyValue('--grid').trim(),
+  muted: css.getPropertyValue('--text-muted').trim(),
+  secondary: css.getPropertyValue('--text-secondary').trim(),
+  primary: css.getPropertyValue('--text-primary').trim(),
+  baseline: css.getPropertyValue('--baseline').trim(),
+};
+
+function cpkStatus(v){
+  if(v>=1.33) return {cls:'good', label:'충분', color:C.good};
+  if(v>=1.0) return {cls:'warn', label:'보통', color:C.warn};
+  return {cls:'crit', label:'부적합', color:C.crit};
+}
+
+// ---------- KPI cards ----------
+const kpiGrid = document.getElementById('kpiGrid');
+const cpkAfter = DATA.cpk.after_spc.cpk;
+const cpkBefore = DATA.cpk.before_periodic.cpk;
+const stAfter = cpkStatus(cpkAfter);
+const stBefore = cpkStatus(cpkBefore);
+
+kpiGrid.innerHTML = `
+  <div class="card kpi">
+    <div class="label"><span class="dot ${stAfter.cls}"></span>Cpk · After(SPC 조기조치 시)</div>
+    <div class="value">${cpkAfter.toFixed(2)} <small>/ 목표 1.33</small></div>
+    <div class="delta"><span class="pill ${stAfter.cls}">${stAfter.label}</span></div>
+  </div>
+  <div class="card kpi">
+    <div class="label"><span class="dot ${stBefore.cls}"></span>Cpk · Before(정기샘플링 발견까지)</div>
+    <div class="value">${cpkBefore.toFixed(2)} <small>/ 목표 1.33</small></div>
+    <div class="delta"><span class="pill ${stBefore.cls}">${stBefore.label}</span></div>
+  </div>
+  <div class="card kpi">
+    <div class="label">이상탐지 조기화(용접 개수)</div>
+    <div class="value">${DATA.detection.rows_saved} <small>개</small></div>
+    <div class="delta" style="color:var(--text-secondary)">= ${DATA.detection.minutes_saved.toFixed(0)}분 더 빠른 조치</div>
+  </div>
+  <div class="card kpi">
+    <div class="label">관리이탈(OOC) 부분군 수</div>
+    <div class="value" id="oocValue">–</div>
+    <div class="delta" style="color:var(--text-secondary)">기준구간 이후 모니터링 부분군 중</div>
+  </div>
+`;
+
+const oocCount = DATA.subgroups.filter(s=>s.rule).length;
+const monitored = DATA.subgroups.length - DATA.meta.baseline_subgroups;
+document.getElementById('oocValue').innerHTML = `${oocCount} <small>/ ${monitored}</small>`;
+
+// ---------- Defect cards ----------
+document.getElementById('defectCards').innerHTML = `
+  <div class="card kpi">
+    <div class="label">오늘 생산량</div>
+    <div class="value">${DATA.meta.n_total.toLocaleString()} <small>개</small></div>
+  </div>
+  <div class="card kpi">
+    <div class="label"><span class="dot good"></span>After: SPC 즉시조치 시나리오</div>
+    <div class="value" style="color:var(--status-good)">${DATA.defect_count.after_spc} <small>건</small></div>
+    <div class="delta" style="color:var(--text-secondary)">탐지시점(1,861번째)까지 누적</div>
+  </div>
+  <div class="card kpi">
+    <div class="label"><span class="dot warn"></span>Before: 정기샘플링 시나리오</div>
+    <div class="value" style="color:var(--status-warning)">${DATA.defect_count.before_periodic} <small>건</small></div>
+    <div class="delta" style="color:var(--text-secondary)">발견시점(2,161번째)까지 누적</div>
+  </div>
+  <div class="card kpi">
+    <div class="label"><span class="dot crit"></span>참고: 미조치 방치 시나리오</div>
+    <div class="value" style="color:var(--status-critical)">${DATA.defect_count.full_if_ignored} <small>건</small></div>
+    <div class="delta" style="color:var(--text-secondary)">근무조 종료(3,000개)까지 누적</div>
+  </div>
+`;
+
+// ---------- Detection panel ----------
+document.getElementById('afterRow').textContent = DATA.detection.after_spc.row_idx_1based.toLocaleString()+'번째';
+document.getElementById('afterTime').textContent = DATA.detection.after_spc.time.slice(11,16);
+document.getElementById('afterRule').textContent = DATA.detection.after_spc.rule;
+document.getElementById('beforeRow').textContent = DATA.detection.before_periodic.row_idx_1based.toLocaleString()+'번째';
+document.getElementById('beforeTime').textContent = DATA.detection.before_periodic.time.slice(11,16);
+document.getElementById('savedHeadline').textContent =
+  `SPC+Nelson Rule 자동감지가 정기 샘플링보다 ${DATA.detection.rows_saved.toLocaleString()}개 용접 (${DATA.detection.minutes_saved.toFixed(0)}분) 더 빨리 특수원인(전극마모)을 포착함`;
+
+// timeline
+(function(){
+  const tl = document.getElementById('timeline');
+  const total = DATA.meta.n_total;
+  const bp = DATA.meta.breakpoint_row / total * 100;
+  const af = DATA.detection.after_spc.row_idx_1based / total * 100;
+  const bf = DATA.detection.before_periodic.row_idx_1based / total * 100;
+  tl.innerHTML = `
+    <div class="track"></div>
+    <div class="marker drift" style="left:${bp}%"></div>
+    <div class="mlabel" style="left:${bp}%; color:var(--text-muted)">전극마모 시작</div>
+    <div class="marker after" style="left:${af}%"></div>
+    <div class="mlabel" style="left:${af}%; color:var(--series-blue)">SPC 탐지</div>
+    <div class="mtime" style="left:${af}%; color:var(--series-blue)">${DATA.detection.after_spc.time.slice(11,16)}</div>
+    <div class="marker before" style="left:${bf}%"></div>
+    <div class="mlabel" style="left:${bf}%; color:var(--status-critical); top:44px;">정기검사 발견</div>
+    <div class="mtime" style="left:${bf}%; color:var(--status-critical); top:8px;">${DATA.detection.before_periodic.time.slice(11,16)}</div>
+  `;
+})();
+
+// ---------- Footer ----------
+document.getElementById('footerNote').innerHTML = `
+  <div><b>규격</b>: 너겟 지름 LSL 5.400mm / USL 6.600mm / 목표 6.000mm &nbsp;|&nbsp; <b>관리한계(X̄)</b>: CL ${DATA.control_limits.xbar.CL.toFixed(4)}, UCL ${DATA.control_limits.xbar.UCL.toFixed(4)}, LCL ${DATA.control_limits.xbar.LCL.toFixed(4)} (초기 30개 부분군 기준) &nbsp;|&nbsp; <b>관리한계(R)</b>: CL ${DATA.control_limits.r.CL.toFixed(4)}, UCL ${DATA.control_limits.r.UCL.toFixed(4)}</div>
+  <div>부분군 n=5, X-bar&R 상수 A2=0.577 D3=0 D4=2.114 d2=2.326 적용. Nelson Rule 1(3σ 이탈)/2(연속9점 편중)/3(연속6점 추세)/5(3점 중 2점 2σ 이탈) 적용.
+  모든 수치는 synthetic 데이터 생성 스크립트(generate_welding_data.py) 및 SPC 분석 스크립트(spc_analysis.py) 실행 결과에서 그대로 산출됨 — 임의로 지어낸 수치 없음.</div>
+`;
+
+// ---------- Charts ----------
+const labels = DATA.subgroups.map(s=>s.i);
+const xbarVals = DATA.subgroups.map(s=>s.xbar);
+const pointColors = DATA.subgroups.map(s=> s.rule ? C.crit : C.blue);
+const pointRadii = DATA.subgroups.map(s=> s.rule ? 3.5 : 1);
+
+const bpIdx = DATA.meta.breakpoint_row / DATA.meta.subgroup_size;
+const afIdx = DATA.detection.after_spc.subgroup_idx;
+const bfIdx = Math.floor(DATA.detection.before_periodic.row_idx_1based / DATA.meta.subgroup_size);
+
+new Chart(document.getElementById('xbarChart'), {
+  type:'line',
+  data:{
+    labels,
+    datasets:[{
+      label:'X̄ (부분군 평균 너겟지름, mm)',
+      data:xbarVals,
+      borderColor:C.blue,
+      backgroundColor:C.blue,
+      pointBackgroundColor:pointColors,
+      pointBorderColor:pointColors,
+      pointRadius:pointRadii,
+      pointHoverRadius:6,
+      borderWidth:1.4,
+      tension:0,
+      spanGaps:true,
+    }]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    interaction:{ mode:'nearest', intersect:false },
+    scales:{
+      x:{ ticks:{ maxTicksLimit:14, color:C.muted, callback:(v,i)=> DATA.subgroups[i]?DATA.subgroups[i].t:''}, grid:{ display:false }, title:{display:true,text:'시각',color:C.secondary,font:{size:11}} },
+      y:{ min:5.0, max:6.5, ticks:{ color:C.muted }, grid:{ color:C.grid }, title:{display:true,text:'너겟 지름 (mm)',color:C.secondary,font:{size:11}} }
+    },
+    plugins:{
+      legend:{ display:false },
+      tooltip:{ callbacks:{
+        title: (items)=> '부분군 #'+items[0].label + ' · ' + DATA.subgroups[items[0].dataIndex].t,
+        label: (item)=>{
+          const s = DATA.subgroups[item.dataIndex];
+          return `X̄ = ${s.xbar.toFixed(3)} mm` + (s.rule? ` ⚠ ${s.rule}` : '');
+        }
+      }},
+      annotation:{
+        annotations:{
+          cl:{ type:'line', yMin:DATA.control_limits.xbar.CL, yMax:DATA.control_limits.xbar.CL, borderColor:C.baseline, borderWidth:1.5, borderDash:[4,3], label:{display:true, content:'CL', position:'start', color:C.secondary, font:{size:10}, backgroundColor:'transparent'} },
+          ucl:{ type:'line', yMin:DATA.control_limits.xbar.UCL, yMax:DATA.control_limits.xbar.UCL, borderColor:C.crit, borderWidth:1.3, borderDash:[5,3], label:{display:true, content:'UCL '+DATA.control_limits.xbar.UCL.toFixed(3), position:'end', color:C.crit, font:{size:10}, backgroundColor:'transparent'} },
+          lcl:{ type:'line', yMin:DATA.control_limits.xbar.LCL, yMax:DATA.control_limits.xbar.LCL, borderColor:C.crit, borderWidth:1.3, borderDash:[5,3], label:{display:true, content:'LCL '+DATA.control_limits.xbar.LCL.toFixed(3), position:'end', color:C.crit, font:{size:10}, backgroundColor:'transparent'} },
+          lsl:{ type:'line', yMin:DATA.spec.LSL, yMax:DATA.spec.LSL, borderColor:C.orange, borderWidth:1.3, borderDash:[2,2], label:{display:true, content:'LSL '+DATA.spec.LSL, position:'start', color:C.orange, font:{size:10}, backgroundColor:'transparent'} },
+          usl:{ type:'line', yMin:DATA.spec.USL, yMax:DATA.spec.USL, borderColor:C.orange, borderWidth:1.3, borderDash:[2,2], label:{display:true, content:'USL '+DATA.spec.USL, position:'start', color:C.orange, font:{size:10}, backgroundColor:'transparent'} },
+          drift:{ type:'line', xMin:bpIdx, xMax:bpIdx, borderColor:C.muted, borderWidth:1.5, borderDash:[6,3] },
+          afdet:{ type:'line', xMin:afIdx, xMax:afIdx, borderColor:C.blue, borderWidth:2 },
+          bfdet:{ type:'line', xMin:bfIdx, xMax:bfIdx, borderColor:C.crit, borderWidth:2 },
+        }
+      }
+    }
+  }
+});
+
+const rVals = DATA.subgroups.map(s=>s.r);
+new Chart(document.getElementById('rChart'), {
+  type:'line',
+  data:{ labels, datasets:[{
+    label:'R (부분군 범위, mm)', data:rVals, borderColor:C.aqua, backgroundColor:C.aqua,
+    pointRadius:0, borderWidth:1.2, tension:0.15,
+  }]},
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    scales:{
+      x:{ ticks:{ maxTicksLimit:10, color:C.muted, callback:(v,i)=> DATA.subgroups[i]?DATA.subgroups[i].t:'' }, grid:{ display:false } },
+      y:{ min:0, ticks:{ color:C.muted }, grid:{ color:C.grid }, title:{display:true,text:'R (mm)',color:C.secondary,font:{size:11}} }
+    },
+    plugins:{
+      legend:{ display:false },
+      tooltip:{ callbacks:{ title:(items)=> '부분군 #'+items[0].label, label:(item)=> 'R = '+item.raw.toFixed(3)+' mm' } },
+      annotation:{ annotations:{
+        cl:{ type:'line', yMin:DATA.control_limits.r.CL, yMax:DATA.control_limits.r.CL, borderColor:C.baseline, borderWidth:1.3, borderDash:[4,3] },
+        ucl:{ type:'line', yMin:DATA.control_limits.r.UCL, yMax:DATA.control_limits.r.UCL, borderColor:C.crit, borderWidth:1.2, borderDash:[5,3], label:{display:true, content:'UCL '+DATA.control_limits.r.UCL.toFixed(3), position:'end', color:C.crit, font:{size:10}, backgroundColor:'transparent'} },
+        drift:{ type:'line', xMin:bpIdx, xMax:bpIdx, borderColor:C.muted, borderWidth:1.5, borderDash:[6,3] },
+      }}
+    }
+  }
+});
+
+const cpkLabels = ['기준구간(정상)','Before: 정기샘플링','After: SPC 즉시조치','참고: 미조치 방치(전체)'];
+const cpkValues = [DATA.cpk.baseline.cpk, DATA.cpk.before_periodic.cpk, DATA.cpk.after_spc.cpk, DATA.cpk.full_if_ignored.cpk];
+const cpkColors = cpkValues.map(v=> cpkStatus(v).color);
+
+new Chart(document.getElementById('cpkChart'), {
+  type:'bar',
+  data:{ labels:cpkLabels, datasets:[{ label:'Cpk', data:cpkValues, backgroundColor:cpkColors, borderRadius:4, maxBarThickness:38 }]},
+  options:{
+    indexAxis:'y', responsive:true, maintainAspectRatio:false,
+    scales:{
+      x:{ min:0, max:1.6, ticks:{ color:C.muted }, grid:{ color:C.grid } },
+      y:{ ticks:{ color:C.secondary, font:{size:12} }, grid:{ display:false } }
+    },
+    plugins:{
+      legend:{ display:false },
+      tooltip:{ callbacks:{ label:(item)=> 'Cpk = '+item.raw.toFixed(3) } },
+      annotation:{ annotations:{
+        target:{ type:'line', xMin:1.33, xMax:1.33, borderColor:C.good, borderWidth:1.5, borderDash:[4,3], label:{display:true, content:'권장기준 1.33', position:'start', color:C.good, font:{size:10}, backgroundColor:'transparent'} }
+      }},
+      datalabels:undefined,
+    }
+  },
+  plugins:[{
+    id:'cpkValueLabel',
+    afterDatasetsDraw(chart){
+      const {ctx} = chart;
+      chart.data.datasets[0].data.forEach((v,i)=>{
+        const meta = chart.getDatasetMeta(0).data[i];
+        ctx.save();
+        ctx.fillStyle = C.primary;
+        ctx.font = '600 12px system-ui,sans-serif';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(v.toFixed(3), meta.x + 8, meta.y);
+        ctx.restore();
+      });
+    }
+  }]
+});
+</script>
