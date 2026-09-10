@@ -46,7 +46,7 @@ else:
     selected_scenario = "base"
     st.sidebar.info("scenario_grid.parquet이 아직 없습니다 (STEP 7 build_scenarios.py 실행 필요)")
 
-st.title("PT 파워트레인 라인 통합 KPI·디지털트윈 대시보드")
+st.title("Dashboard project 1")
 st.caption("모든 수치는 실제 스크립트 실행 결과입니다. 데이터 출처는 사이드바 하단 또는 '데이터 출처' 페이지 참고.")
 
 # --- 상단 스코어카드: base 시나리오 기준 OEE/A/P/Q ---
