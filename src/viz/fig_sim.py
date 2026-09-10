@@ -27,9 +27,12 @@ def fig_monte_carlo(values, ci_low: float, ci_high: float, mean: float | None = 
     if is_degenerate:
         spike_width = max(abs(mean) * 0.02, 1e-6)
         fig.add_trace(go.Bar(x=[mean], y=[n], width=[spike_width], marker_color="#1F77B4"))
+        # 주석을 플롯 영역 "안"(예: x=0.5,y=0.5)에 두면 막대 높이(n)에 따라 막대와 겹쳐 보인다
+        # (버퍼=5·PM=0 기본 시나리오에서 실제로 겹쳐 보이는 문제 발견, TROUBLESHOOTING.md
+        # 2026-09-10 배포 QA 참고) — 막대 높이와 무관하게 항상 플롯 영역 "위쪽 바깥"에 고정한다.
         fig.add_annotation(
             text=f"{n}회 모두 동일한 값({mean:.4f}) — 변동 없음", xref="paper", yref="paper",
-            x=0.5, y=0.5, showarrow=False, font=dict(family=FONT_FAMILY, size=13),
+            x=0.5, y=1.08, yanchor="bottom", showarrow=False, font=dict(family=FONT_FAMILY, size=13),
         )
     else:
         fig.add_trace(go.Histogram(x=values, name="반복 실행값", marker_color="#1F77B4", opacity=0.85))
